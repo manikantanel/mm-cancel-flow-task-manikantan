@@ -59,11 +59,13 @@ export default function JobCongratsModal({
   onBack,
   onContinue,
   onFoundVia,
+  subscriptionId,              // <-- REQUIRED
 }: {
   open: boolean;
   onBack: () => void;
   onContinue: () => void;
   onFoundVia: (foundWithMM: boolean) => void;
+  subscriptionId: string;      // <-- pass a real UUID for the current user’s subscription
 }) {
   const [q1, setQ1] = useState<string>(); // "yes" | "no"
   const [q2, setQ2] = useState<string>();
@@ -71,22 +73,52 @@ export default function JobCongratsModal({
   const [q4, setQ4] = useState<string>();
   const [foundWithMM, setFoundWithMM] = useState<boolean | null>(null);
 
+  const [cancellationId, setCancellationId] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
   const surveyReady = useMemo(() => !!(q1 && q2 && q3 && q4), [q1, q2, q3, q4]);
-  const ready = surveyReady && foundWithMM !== null;
+  const ready = surveyReady && foundWithMM !== null && !submitting;
+
+  async function ensureCancellationId(): Promise<string> {
+    if (cancellationId) return cancellationId;
+    const r = await fetch('/api/cancel/bootstrap', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscriptionId }),   // <-- send required body
+    });
+    if (!r.ok) throw new Error(`bootstrap_failed_${r.status}`);
+    const j = await r.json();
+    if (!j?.cancellationId) throw new Error('bootstrap_missing_id');
+    setCancellationId(j.cancellationId);
+    return j.cancellationId as string;
+  }
 
   async function handleContinue() {
     if (!ready) return;
+    setSubmitting(true);
     try {
-      await fetch('/api/cancel/reason', {
+      const id = await ensureCancellationId();
+      const details = `withMMRow=${q1}; rolesViaMM=${q2}; emailed=${q3}; interviewed=${q4}`;
+
+      const res = await fetch('/api/cancel/reason', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          reason: `Found job survey: withMMRow=${q1}; rolesViaMM=${q2}; emailed=${q3}; interviewed=${q4}`,
+          cancellationId: id,
+          reasonKey: 'found_job_survey',
+          details,
         }),
       });
-    } catch {}
-    onFoundVia(Boolean(foundWithMM));
-    onContinue();
+      if (!res.ok) {
+        console.error('reason API failed', res.status, await res.text().catch(() => ''));
+      }
+    } catch (e) {
+      console.error('handleContinue error', e);
+    } finally {
+      setSubmitting(false);
+      onFoundVia(Boolean(foundWithMM));
+      onContinue();
+    }
   }
 
   if (!open) return null;
@@ -174,11 +206,11 @@ export default function JobCongratsModal({
                   ? 'bg-gray-900 text-white hover:opacity-90'
                   : 'bg-gray-100 text-gray-500 cursor-not-allowed border border-gray-200'}`}
             >
-              Continue
+              {submitting ? 'Submitting…' : 'Continue'}
             </button>
           </div>
 
-          {/* RIGHT: image (shared sizing) */}
+          {/* RIGHT: image */}
           <div className="modal__imgWrap">
             <div className="modal__imgBox">
               <img src="/empire-state-compressed.jpg" alt="New York skyline" />
