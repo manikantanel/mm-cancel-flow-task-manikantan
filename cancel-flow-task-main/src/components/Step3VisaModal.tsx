@@ -25,14 +25,14 @@ export default function Step3VisaModal({
     [hasLawyer, visa]
   );
 
-  // Reusable class for the custom radio
+  // custom radio
 const radioClass =
   "relative inline-grid place-content-center appearance-none select-none " +
-  "h-5 w-5 rounded-full border-2 border-black bg-white " +            // ring black + white center (unchecked)
-  "checked:bg-black " +                                               // fill black when checked
-  "focus:outline-none focus:ring-2 focus:ring-black/20 " +            // focus
-  "after:content-[''] after:block after:rounded-full after:bg-white " + // inner dot
-  "after:w-1.5 after:h-1.5 after:scale-0 checked:after:scale-100 " +  // show dot only when checked
+  "h-5 w-5 rounded-full border-2 border-black bg-white " +           
+  "checked:bg-black " +                                               
+  "focus:outline-none focus:ring-2 focus:ring-black/20 " +            
+  "after:content-[''] after:block after:rounded-full after:bg-white " + 
+  "after:w-1.5 after:h-1.5 after:scale-0 checked:after:scale-100 " +  
   "after:transition-transform";
 
 
